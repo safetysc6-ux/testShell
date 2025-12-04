@@ -262,6 +262,10 @@
                             <div><label class="text-gray-400 block mb-1">เริ่ม</label><input type="date" id="filter-start" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()"></div>
                             <div><label class="text-gray-400 block mb-1">สิ้นสุด</label><input type="date" id="filter-end" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()"></div>
                         </div>
+                        <div class="mb-1 text-xs">
+                             <label class="text-gray-400 block mb-1">รหัสพนักงาน</label>
+                             <input type="text" id="filter-empid" class="w-full border rounded p-2" placeholder="กรอกรหัสพนักงาน" onchange="fetchDeepAnalytics()">
+                        </div>
                     </div>
 
                     <div class="mb-3 flex justify-between items-center">
@@ -437,7 +441,19 @@
         toggleLoader(true);
         try {
             let qs = [];
-            if(state.isMock) { await new Promise(r=>setTimeout(r,500)); qs = [{id:'m1', part:1, text:'(Mock) ตัวอย่างข้อสอบ', options:['ก','ข'], correct:'ก'}]; } 
+            if(state.isMock) { 
+                await new Promise(r=>setTimeout(r,500)); 
+                // [เพิ่ม] Mock Data ให้ครบทุกส่วน เพื่อการทดสอบที่สมจริง (7 ข้อ)
+                qs = [
+                    {id:'m1', part:1, text:'(Mock P1) ข้อใดคือความปลอดภัยพื้นฐาน?', options:['สวมหมวก','ใส่รองเท้าแตะ'], correct:'สวมหมวก'},
+                    {id:'m2', part:1, text:'(Mock P1) ถังดับเพลิงสีแดงใช้ดับไฟประเภทใด?', options:['ทั่วไป','น้ำมัน'], correct:'ทั่วไป'},
+                    {id:'m3', part:2, text:'(Mock P2 Process) ขั้นตอนแรกของการทำงานคือ?', options:['ตอกบัตร','เตรียมเครื่องมือ'], correct:'เตรียมเครื่องมือ'},
+                    {id:'m4', part:2, text:'(Mock P2 Process) ถ้าเครื่องจักรขัดข้องต้องทำอย่างไร?', options:['ซ่อมเอง','แจ้งหัวหน้า'], correct:'แจ้งหัวหน้า'},
+                    {id:'m5', part:3, text:'(Mock P3 Critical) จุดอันตรายที่สุดคือ?', options:['จุดหมุน','ทางเดิน'], correct:'จุดหมุน'},
+                    {id:'m6', part:4, text:'(Mock P4 Exam) ข้อสอบกลางข้อที่ 1', options:['A','B'], correct:'A'},
+                    {id:'m7', part:4, text:'(Mock P4 Exam) ข้อสอบกลางข้อที่ 2', options:['C','D'], correct:'C'}
+                ]; 
+            } 
             else {
                 const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getQuestions&process=${encodeURIComponent(state.selProc)}`);
                 const d = await res.json(); qs = d.questions;
@@ -588,11 +604,12 @@
         if(state.isMock) return;
         const start = dom('filter-start').value;
         const end = dom('filter-end').value;
+        const empId = dom('filter-empid').value;
         const list = dom('dash-analytics-list');
         list.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
 
         try {
-            const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getDeepAnalytics&start=${start}&end=${end}`);
+            const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getDeepAnalytics&start=${start}&end=${end}&empId=${empId}`);
             const data = await res.json();
             
             if(!data || data.length === 0) {

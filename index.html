@@ -104,6 +104,10 @@
         .tab-btn { transition: all 0.2s; }
         .tab-btn.active { background-color: #1F2937; color: white; shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .tab-btn.inactive { background-color: transparent; color: #9CA3AF; }
+        
+        .kpi-card { background: white; border-radius: 12px; padding: 16px; border: 1px solid #E5E7EB; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .kpi-label { font-size: 10px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 24px; font-weight: 700; color: #1F2937; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -251,8 +255,9 @@
                     <button onclick="switchTab('questions')" id="tab-questions" class="flex-1 py-2 text-xs font-bold rounded-lg tab-btn inactive">ข้อสอบ</button>
                 </div>
 
-                <!-- DASHBOARD (UPDATED) -->
+                <!-- DASHBOARD (UPDATED - PROFESSIONAL) -->
                 <div id="view-dashboard">
+                    <!-- Analytics Filter -->
                     <div class="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-gray-100">
                         <div class="flex justify-between items-center mb-3">
                              <h3 class="font-bold text-sm text-gray-700 flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4"></i> ตัวกรองข้อมูล</h3>
@@ -262,7 +267,7 @@
                             <div><label class="text-gray-400 block mb-1">เริ่ม</label><input type="date" id="filter-start" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()"></div>
                             <div><label class="text-gray-400 block mb-1">สิ้นสุด</label><input type="date" id="filter-end" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-2">
                             <div>
                                 <label class="text-gray-400 block mb-1">ส่วนข้อสอบ</label>
                                 <select id="filter-part-dash" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()">
@@ -274,25 +279,48 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-gray-400 block mb-1">รหัสพนักงาน</label>
-                                <input type="text" id="filter-empid" class="w-full border rounded p-1" placeholder="ทั้งหมด" onchange="fetchDeepAnalytics()">
+                                <label class="text-gray-400 block mb-1">Process งาน</label>
+                                <select id="filter-process-dash" class="w-full border rounded p-1" onchange="fetchDeepAnalytics()">
+                                    <option value="">ทั้งหมด</option>
+                                    <!-- Populated by JS -->
+                                </select>
                             </div>
+                        </div>
+                        <div class="text-xs">
+                             <label class="text-gray-400 block mb-1">รหัสพนักงาน</label>
+                             <input type="text" id="filter-empid" class="w-full border rounded p-1" placeholder="ทั้งหมด" onchange="fetchDeepAnalytics()">
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards (New) -->
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <div class="kpi-card text-center">
+                            <div class="kpi-label">ผู้เข้าสอบ</div>
+                            <div class="kpi-value text-blue-600" id="kpi-users">-</div>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <div class="kpi-label">ผ่านเกณฑ์</div>
+                            <div class="kpi-value text-green-600" id="kpi-pass">-</div>
+                        </div>
+                        <div class="kpi-card text-center">
+                            <div class="kpi-label">เฉลี่ย</div>
+                            <div class="kpi-value text-slate-700" id="kpi-score">-</div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 mb-20">
                         <!-- Overview Chart -->
                         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                            <h3 class="font-bold text-sm text-gray-700 mb-2">ภาพรวม (ถูก/ผิด)</h3>
-                            <div style="height: 200px; position: relative;">
+                            <h3 class="font-bold text-sm text-gray-700 mb-2">ภาพรวม (Pass Rate)</h3>
+                            <div style="height: 180px; position: relative;">
                                 <canvas id="chart-overview"></canvas>
                             </div>
                         </div>
 
                         <!-- Question Stats Chart -->
                         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                            <h3 class="font-bold text-sm text-gray-700 mb-2">วิเคราะห์รายข้อ (ข้อที่ผิดเยอะสุด)</h3>
-                            <div style="height: 350px; position: relative;">
+                            <h3 class="font-bold text-sm text-gray-700 mb-2">วิเคราะห์รายข้อ (Top 10 ข้อผิดเยอะ)</h3>
+                            <div style="height: 400px; position: relative;">
                                 <canvas id="chart-questions"></canvas>
                             </div>
                         </div>
@@ -378,7 +406,6 @@
 <script>
     // --- STATE ---
     let state = { lines: [], processes: [], user: null, quiz: [], answers: {}, adminQs: [], masterEdit: null, isMock: false };
-    // Chart instances
     let overviewChart = null;
     let questionChart = null;
     
@@ -406,7 +433,6 @@
         dom('select-line').addEventListener('change', onLineChange);
         dom('select-process').addEventListener('change', () => { state.selProc = dom('select-process').value; checkStart(); });
         
-        // Auto Set Date inputs
         const date = new Date();
         const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
         const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -450,6 +476,13 @@
         if(l) { l.innerHTML = '<option value="">-- เลือก Line --</option>'; state.lines.forEach(x => l.innerHTML += `<option value="${x}">${x}</option>`); }
         if(p) p.innerHTML = '<option value="">-- รอเลือก Line --</option>'; 
         if(qp) { qp.innerHTML = ''; state.processes.forEach(x => qp.innerHTML += `<option value="${x}">${x}</option>`); }
+        
+        // Update Admin Filter Dropdown
+        const f = dom('filter-process-dash');
+        if(f) {
+            f.innerHTML = '<option value="">ทั้งหมด</option>';
+            state.processes.forEach(x => f.innerHTML += `<option value="${x}">${x}</option>`);
+        }
     }
 
     function onLineChange() {
@@ -594,65 +627,91 @@
         });
     }
 
-    // [NEW] Dashboard Charts
+    // [UPDATED] Dashboard Charts & Stats
     async function fetchDeepAnalytics() {
         if(state.isMock) return;
         const start = dom('filter-start').value;
         const end = dom('filter-end').value;
         const empId = dom('filter-empid').value;
         const partFilter = dom('filter-part-dash').value;
+        const procFilter = dom('filter-process-dash').value;
 
-        // Reset UI
+        // Loading
+        dom('kpi-users').innerText = '...';
+        dom('kpi-pass').innerText = '...';
+        dom('kpi-score').innerText = '...';
+
         if(overviewChart) overviewChart.destroy();
         if(questionChart) questionChart.destroy();
 
         try {
-            const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getDeepAnalytics&start=${start}&end=${end}&empId=${empId}`);
-            const data = await res.json();
+            const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getDeepAnalytics&start=${start}&end=${end}&empId=${empId}&part=${partFilter}&process=${encodeURIComponent(procFilter)}`);
+            const json = await res.json();
+            const data = json.questions;
+            const kpi = json.kpi;
             
-            // Client-side filtering by Part (since server sends all)
-            const filteredData = partFilter ? data.filter(d => d.part == partFilter) : data;
+            if(!data || data.length === 0) {
+                // dom('dash-analytics-list').innerHTML = '<div class="text-center py-8 bg-gray-50 rounded-xl border border-dashed"><p class="text-sm text-gray-400">ไม่พบข้อมูล</p></div>';
+                return;
+            }
 
-            if(!filteredData || filteredData.length === 0) return;
+            // Update KPI
+            dom('kpi-users').innerText = kpi.totalUsers;
+            const passRate = kpi.totalUsers ? Math.round((kpi.passed / kpi.totalUsers)*100) : 0;
+            dom('kpi-pass').innerText = `${passRate}%`;
+            const avgScore = kpi.countScore ? (kpi.totalScore / kpi.countScore).toFixed(1) : "0.0";
+            dom('kpi-score').innerText = avgScore;
 
-            // Prepare Data
-            const labels = filteredData.map(d => d.question.substring(0, 30) + '...');
-            const correctData = filteredData.map(d => d.correct);
-            const wrongData = filteredData.map(d => d.wrong);
-            const totalCorrect = correctData.reduce((a,b)=>a+b, 0);
-            const totalWrong = wrongData.reduce((a,b)=>a+b, 0);
+            // Prepare Data for Charts
+            const topQuestions = data.slice(0, 10); // Top 10 wrong
+            const labels = topQuestions.map(d => d.question.substring(0, 25) + '...');
+            const correctData = topQuestions.map(d => d.correct);
+            const wrongData = topQuestions.map(d => d.wrong);
 
-            // 1. Overview Chart (Doughnut)
+            // 1. Overview Chart (Pass Rate Donut)
             const ctxOverview = dom('chart-overview').getContext('2d');
             overviewChart = new Chart(ctxOverview, {
                 type: 'doughnut',
                 data: {
-                    labels: ['ตอบถูก', 'ตอบผิด'],
+                    labels: ['ผ่าน', 'ไม่ผ่าน'],
                     datasets: [{
-                        data: [totalCorrect, totalWrong],
+                        data: [kpi.passed, kpi.totalUsers - kpi.passed],
                         backgroundColor: ['#10B981', '#EF4444'],
-                        borderWidth: 0
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                options: { 
+                    maintainAspectRatio: false, 
+                    cutout: '70%',
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } }
+                    } 
+                }
             });
 
-            // 2. Question Analysis Chart (Bar)
+            // 2. Question Analysis Chart (Horizontal Bar)
             const ctxQuestions = dom('chart-questions').getContext('2d');
             questionChart = new Chart(ctxQuestions, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'ผิด', data: wrongData, backgroundColor: '#EF4444', stack: 'Stack 0' },
-                        { label: 'ถูก', data: correctData, backgroundColor: '#10B981', stack: 'Stack 0' }
+                        { label: 'ตอบผิด', data: wrongData, backgroundColor: '#EF4444', barPercentage: 0.6 },
+                        { label: 'ตอบถูก', data: correctData, backgroundColor: '#10B981', barPercentage: 0.6 }
                     ]
                 },
                 options: {
                     indexAxis: 'y',
                     maintainAspectRatio: false,
-                    scales: { x: { stacked: true }, y: { stacked: true, ticks: { font: { size: 10 } } } },
-                    plugins: { legend: { display: true } }
+                    scales: { 
+                        x: { stacked: true, grid: { display: false } }, 
+                        y: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } } 
+                    },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true } },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
                 }
             });
 
@@ -688,6 +747,9 @@
         if(subAction=='delete') state[type==='lines'?'lines':'processes'].splice(index, 1);
         if(subAction=='edit') state[type==='lines'?'lines':'processes'][index] = valToSend;
         renderMasterLists(); 
+        
+        // Refresh dropdowns if process list changes
+        if(type==='processes') renderDropdowns();
 
         if(!state.isMock) {
             try {
